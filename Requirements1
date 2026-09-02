@@ -1,0 +1,15 @@
+# ERCOT Storage Desk -- Battery Arbitrage & Dispatch Simulator
+# Install everything with:   pip install -r requirements1.txt
+#
+# What each package is for:
+#   streamlit   the web app framework that renders the whole dashboard
+#   gridstatus  pulls real ERCOT Settlement Point Price data (no API key needed)
+#   plotly      the interactive price / state-of-charge / P&L chart
+#   pandas      time-series handling for the price feed and simulation output
+#   numpy       fast array math inside the dispatch simulation loop
+
+streamlit>=1.35
+gridstatus>=0.28.0
+plotly>=5.20
+pandas>=2.1
+numpy>=1.26
