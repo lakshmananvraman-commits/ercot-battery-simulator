@@ -16,8 +16,8 @@ would have earned.
 
 HOW TO RUN THIS
 ----------------
-1. Install the dependencies:      pip install -r requirements1.txt
-2. Launch the app:                streamlit run app1.py
+1. Install the dependencies:      pip install -r requirements.txt
+2. Launch the app:                streamlit run app.py
 3. Your browser opens automatically to a local address (usually
    http://localhost:8501). Everything runs on your machine -- the only
    outbound network calls are to ERCOT's public data feed via the
@@ -65,88 +65,76 @@ st.set_page_config(
 # =============================================================================
 # 2. DESIGN SYSTEM
 # -----------------------------------------------------------------------------
-# One fixed, deliberate color system used everywhere in this app -- in the
-# injected CSS below AND in every Plotly trace further down. Nothing is
-# picked ad hoc. Roles:
-#   - "charge"/"discharge" are a categorical (identity) pair: which action
-#     did the algorithm take. Blue reads as "cold / absorbing", orange reads
-#     as "hot / releasing" -- an intentional, intuitive mapping, not a
-#     random assignment.
-#   - "good"/"critical" are a status pair used ONLY for the profit curve,
-#     because profit direction genuinely means good/bad -- it is not just
-#     "series #3".
-#   - Everything else (ink, gridlines, surfaces) is neutral chrome.
 # =============================================================================
 COLORS = {
-    "page_bg": "#0d0d0d",
-    "surface": "#1a1a19",
-    "surface_raised": "#202020",
-    "border": "rgba(255,255,255,0.10)",
-    "ink_primary": "#ffffff",
-    "ink_secondary": "#c3c2b7",
-    "ink_muted": "#898781",
-    "gridline": "#2c2c2a",
-    "baseline": "#383835",
-    "charge": "#3987e5",      # categorical slot 1 (blue)  -> energy flowing IN
-    "discharge": "#d95926",   # categorical slot 2 (orange) -> energy flowing OUT
-    "good": "#0ca30c",        # status: profit is positive
-    "critical": "#d03b3b",    # status: profit is negative
+    "page_bg": "#F8FAFC",       # Light slate background
+    "surface": "#FFFFFF",       # Pure white metric cards
+    "surface_raised": "#F1F5F9",
+    "border": "#E2E8F0",        # Soft gray borders
+    "ink_primary": "#0F172A",   # Deep slate text (softer than pure black)
+    "ink_secondary": "#475569",
+    "ink_muted": "#94A3B8",
+    "gridline": "#F1F5F9",
+    "baseline": "#CBD5E1",
+    "charge": "#0EA5E9",        # Vibrant energy blue
+    "discharge": "#F59E0B",     # Vibrant amber
+    "good": "#10B981",          # Emerald green for profit
+    "critical": "#EF4444",      # Rose red for loss
 }
 
 CUSTOM_CSS = """
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+    
     html, body, [class*="css"] {
-        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-family: 'Inter', 'Helvetica Neue', sans-serif;
     }
     .stApp {
-        background-color: #0d0d0d;
+        background-color: #F8FAFC;
     }
     /* Sidebar */
     section[data-testid="stSidebar"] {
-        background-color: #141413;
-        border-right: 1px solid rgba(255,255,255,0.08);
+        background-color: #F1F5F9;
+        border-right: 1px solid #E2E8F0;
     }
-    /* Metric cards: turn Streamlit's plain metric into a bordered tile that
-       sits on the chart-surface color, matching the rest of the dashboard.
-       Purely cosmetic -- if a future Streamlit version renames these
-       internal test-ids, the app still runs fine, it just looks plainer. */
+    /* Metric cards: turn Streamlit's plain metric into a bordered tile */
     div[data-testid="stMetric"] {
-        background-color: #1a1a19;
-        border: 1px solid rgba(255,255,255,0.10);
+        background-color: #FFFFFF;
+        border: 1px solid #E2E8F0;
         border-radius: 10px;
         padding: 14px 16px 10px 16px;
     }
     div[data-testid="stMetricLabel"] {
-        color: #898781;
+        color: #475569;
     }
     div[data-testid="stMetricValue"] {
-        color: #ffffff;
+        color: #0F172A;
     }
     /* Headings */
-    h1, h2, h3 { color: #ffffff; letter-spacing: -0.01em; }
+    h1, h2, h3 { color: #0F172A; letter-spacing: -0.01em; }
     .desk-tagline {
-        color: #898781;
+        color: #475569;
         font-size: 0.95rem;
         margin-top: -10px;
         margin-bottom: 1.2rem;
     }
     .context-card {
-        background-color: #1a1a19;
-        border: 1px solid rgba(255,255,255,0.10);
-        border-left: 3px solid #3987e5;
+        background-color: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-left: 3px solid #0EA5E9;
         border-radius: 6px;
         padding: 14px 18px;
-        color: #c3c2b7;
+        color: #475569;
         font-size: 0.92rem;
         line-height: 1.55;
         margin-bottom: 1rem;
     }
-    .context-card b { color: #ffffff; }
+    .context-card b { color: #0F172A; }
     .footnote {
-        color: #6b6a65;
+        color: #94A3B8;
         font-size: 0.78rem;
     }
-    hr { border-color: rgba(255,255,255,0.08); }
+    hr { border-color: #E2E8F0; }
 </style>
 """
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
@@ -255,7 +243,7 @@ def fetch_ercot_prices(hub: str, lookback_days: int) -> pd.DataFrame:
     if not GRIDSTATUS_AVAILABLE:
         raise RuntimeError(
             "The 'gridstatus' package is not installed. Run: "
-            "pip install -r requirements1.txt"
+            "pip install -r requirements.txt"
         )
 
     iso = Ercot()
@@ -318,10 +306,10 @@ def fetch_ercot_prices(hub: str, lookback_days: int) -> pd.DataFrame:
 # correct simulator has to respect both simultaneously:
 #
 #   1. POWER (MW)     -- how fast energy can move in or out right now.
-#                         This is the size of the inverter/pipe.
+#                        This is the size of the inverter/pipe.
 #   2. ENERGY (MWh)    -- how much can be stored in total.
-#                         This is the size of the tank, = Power x Duration.
-#                         A "100 MW / 2-hour" battery has a 200 MWh tank.
+#                        This is the size of the tank, = Power x Duration.
+#                        A "100 MW / 2-hour" battery has a 200 MWh tank.
 #
 # In any single time step, the battery can move at most (Power x step
 # length in hours) MWh -- that's the power limit. But it can never charge
@@ -604,7 +592,7 @@ def build_dashboard_figure(sim_df: pd.DataFrame, hub_label: str,
             x=sim_df["time"], y=sim_df["soc_pct"],
             mode="lines", name="State of Charge",
             line=dict(color=COLORS["charge"], width=2),
-            fill="tozeroy", fillcolor="rgba(57,135,229,0.10)",
+            fill="tozeroy", fillcolor="rgba(14, 165, 233, 0.10)",
             showlegend=False,
             hovertemplate="SoC: %{y:.0f}%<extra></extra>",
         ),
@@ -618,7 +606,7 @@ def build_dashboard_figure(sim_df: pd.DataFrame, hub_label: str,
             mode="lines", name="Cumulative Profit",
             line=dict(color=pnl_color, width=2),
             fill="tozeroy",
-            fillcolor="rgba(12,163,12,0.10)" if final_profit >= 0 else "rgba(208,59,59,0.10)",
+            fillcolor="rgba(16, 185, 129, 0.10)" if final_profit >= 0 else "rgba(239, 68, 68, 0.10)",
             showlegend=False,
             hovertemplate="Cumulative P&L: $%{y:,.0f}<extra></extra>",
         ),
@@ -639,7 +627,7 @@ def build_dashboard_figure(sim_df: pd.DataFrame, hub_label: str,
         height=780,
         paper_bgcolor=COLORS["page_bg"],
         plot_bgcolor=COLORS["surface"],
-        font=dict(family="system-ui, -apple-system, Segoe UI, sans-serif", color=COLORS["ink_secondary"]),
+        font=dict(family="Inter, Helvetica Neue, sans-serif", color=COLORS["ink_secondary"]),
         hovermode="x unified",
         margin=dict(l=60, r=30, t=60, b=40),
         legend=dict(
@@ -683,7 +671,7 @@ with st.sidebar:
         "ERCOT trading hub", options=list(ERCOT_HUBS.keys()), index=0,
     )
     st.caption(ERCOT_HUBS[hub])
-    lookback_days = st.slider("Lookback window (days)", min_value=2, max_value=14, value=7, step=1)
+    lookback_days = st.slider("Lookback window (days)", min_value=2, max_value=14, value=2, step=1)
     if st.button("Refresh live data", use_container_width=True):
         fetch_ercot_prices.clear()
         st.rerun()
